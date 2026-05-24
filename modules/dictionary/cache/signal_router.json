@@ -1,0 +1,72 @@
+{
+  "scales": {
+    "HF": {
+      "span": 2,
+      "alpha": 0.6666666666666666
+    },
+    "MF": {
+      "span": 10,
+      "alpha": 0.18181818181818182
+    },
+    "LF": {
+      "span": 50,
+      "alpha": 0.0392156862745098
+    }
+  },
+  "signals": {
+    "depth_evap": {
+      "HF": {
+        "lead": 18,
+        "corr": 0.058378283446271044,
+        "role": "precursor"
+      },
+      "MF": {
+        "lead": 3,
+        "corr": 0.05683374303610971,
+        "role": "precursor"
+      },
+      "LF": {
+        "lead": 16,
+        "corr": -0.001789636113661985,
+        "role": "diagnostic"
+      },
+      "_optimal_scale": "HF"
+    },
+    "obi_impulse": {
+      "HF": {
+        "lead": 20,
+        "corr": 0.07353131012247685,
+        "role": "precursor"
+      },
+      "MF": {
+        "lead": 20,
+        "corr": 0.0759553247685376,
+        "role": "precursor"
+      },
+      "LF": {
+        "lead": 16,
+        "corr": 0.09318704894020585,
+        "role": "precursor"
+      },
+      "_optimal_scale": "LF"
+    },
+    "spread_shock": {
+      "HF": {
+        "lead": 13,
+        "corr": 0.07384273203668736,
+        "role": "precursor"
+      },
+      "MF": {
+        "lead": 3,
+        "corr": 0.08031721740980166,
+        "role": "precursor"
+      },
+      "LF": {
+        "lead": 16,
+        "corr": 0.07621238477907778,
+        "role": "precursor"
+      },
+      "_optimal_scale": "MF"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:\\Users\\ZaneLaw\\anaconda3\\python.exe c:\\Users\\ZaneLaw\\Desktop\\Zane\\Hephaestus\\.claude\\hooks\\log_tool_use.py"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\ZaneLaw\\\\Desktop\\\\Zane\\\\Hephaestus && python -c \\\\\"import sys; print\\(sys.executable\\); print\\('ok'\\)\\\\\"\")",
+      "Bash(cmd //c \"python -c \\\\\"print\\('test'\\)\\\\\"\")",
+      "Bash(cmd //c \"python -c \\\\\"import pandas as pd; df = pd.read_parquet\\(r'c:\\\\\\\\Users\\\\\\\\ZaneLaw\\\\\\\\Desktop\\\\\\\\Zane\\\\\\\\\\\\高频项目\\\\\\\\刘子睿_HFT_Backtest\\\\\\\\data\\\\\\\\events_features.parquet'\\); print\\(df.columns.tolist\\(\\)\\); print\\(len\\(df\\)\\); print\\(df.head\\(2\\)\\)\\\\\"\")",
+      "Bash(cmd //c \"C:\\\\Users\\\\ZaneLaw\\\\anaconda3\\\\python.exe -c \\\\\"import torch; print\\('PyTorch:', torch.__version__\\); print\\('CUDA avail:', torch.cuda.is_available\\(\\)\\); print\\('CUDA version:', torch.version.cuda\\); print\\('GPU:', torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else 'N/A'\\)\\\\\"\")",
+      "Bash(python -c \"import polars as pl; df = pl.read_parquet\\(r'C:\\\\Users\\\\ZaneLaw\\\\Desktop\\\\Zane\\\\高频项目\\\\刘子睿_HFT_Backtest\\\\data\\\\events_features.parquet'\\); print\\('Shape:', df.shape\\); print\\('\\\\nColumns:', df.columns\\); print\\('\\\\nDtypes:'\\); print\\(df.dtypes\\); print\\('\\\\nFirst 3 rows:'\\); print\\(df.head\\(3\\)\\); print\\('\\\\nDescribe:'\\); print\\(df.describe\\(\\)\\)\")",
+      "Bash(python -c \"import os; print\\(os.path.exists\\(r'C:\\\\Users\\\\ZaneLaw\\\\Desktop\\\\Zane\\\\高频项目\\\\刘子睿_HFT_Backtest\\\\data\\\\events_features.parquet'\\)\\)\")",
+      "Bash(python -c \"import polars as pl; df = pl.read_parquet\\(r'C:\\\\Users\\\\ZaneLaw\\\\Desktop\\\\Zane\\\\高频项目\\\\刘子睿_HFT_Backtest\\\\data\\\\events_features.parquet', n_rows=5\\); print\\(df.columns\\); print\\(df.dtypes\\)\")"
+    ]
+  }
+}

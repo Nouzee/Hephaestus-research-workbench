@@ -1,0 +1,25 @@
+# Data files (large, local only)
+data/
+*.parquet
+*.csv
+
+# Output and logs
+output/
+.claude/logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Cache: keep configs, exclude generated arrays
+modules/dictionary/cache/*.npy
+!modules/dictionary/cache/*.json
+
+# System
+.DS_Store
+Thumbs.db
+*.tmp

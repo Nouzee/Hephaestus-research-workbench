@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-05-07T11:47:06.195814",
+  "data_source": "demo",
+  "metrics": {
+    "n_trades": 2000,
+    "weighted_adverse_selection_bps": -0.007354268312671993,
+    "fill_rate": 0.8515,
+    "buy_fill_rate": 0.8532455315145814,
+    "sell_fill_rate": 0.8495197438633938,
+    "turnover_ratio": 8068691.786780315,
+    "turnover_status": "TOO_HIGH",
+    "trades_per_min": 597.3120955699352
+  },
+  "anti_cheat_passed": false,
+  "anti_cheat_violations": [
+    "IC_DECAY: rapid decay, check signal quality",
+    "OVERFIT: overfit detected: IS/OOS gap too large"
+  ]
+}

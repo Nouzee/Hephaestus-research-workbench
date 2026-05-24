@@ -1,0 +1,106 @@
+{
+  "scales": {
+    "HF": {
+      "span": 2,
+      "alpha": 0.6666666666666666
+    },
+    "MF": {
+      "span": 10,
+      "alpha": 0.18181818181818182
+    },
+    "LF": {
+      "span": 50,
+      "alpha": 0.0392156862745098
+    }
+  },
+  "signals": {
+    "depth_evap": {
+      "HF": {
+        "lead": 2,
+        "corr": 0.03921948657212877,
+        "role": "precursor"
+      },
+      "MF": {
+        "lead": 9,
+        "corr": 0.061604172314983406,
+        "role": "precursor"
+      },
+      "LF": {
+        "lead": 4,
+        "corr": 0.09845431445450482,
+        "role": "precursor"
+      }
+    },
+    "obi_impulse": {
+      "HF": {
+        "lead": 0,
+        "corr": 0.08694457785261146,
+        "role": "confirm"
+      },
+      "MF": {
+        "lead": 0,
+        "corr": 0.10434727431055449,
+        "role": "confirm"
+      },
+      "LF": {
+        "lead": 0,
+        "corr": -0.0038606009829872273,
+        "role": "noise"
+      }
+    },
+    "spread_shock": {
+      "HF": {
+        "lead": 2,
+        "corr": 0.036930960119808155,
+        "role": "precursor"
+      },
+      "MF": {
+        "lead": 9,
+        "corr": 0.04935440680595935,
+        "role": "precursor"
+      },
+      "LF": {
+        "lead": 6,
+        "corr": 0.01873757965330507,
+        "role": "confirm"
+      }
+    },
+    "cancel_burst": {
+      "HF": {
+        "lead": 0,
+        "corr": -999.0,
+        "role": "noise"
+      },
+      "MF": {
+        "lead": 0,
+        "corr": -999.0,
+        "role": "noise"
+      },
+      "LF": {
+        "lead": 0,
+        "corr": -999.0,
+        "role": "noise"
+      }
+    }
+  },
+  "weights": {
+    "HF": {
+      "depth_evap": 1.5,
+      "obi_impulse": 1.5,
+      "spread_shock": 0.5,
+      "cancel_burst": 0.3
+    },
+    "MF": {
+      "depth_evap": 1.0,
+      "obi_impulse": 1.0,
+      "spread_shock": 0.5,
+      "cancel_burst": 0.3
+    },
+    "LF": {
+      "depth_evap": 0.3,
+      "obi_impulse": 0.3,
+      "spread_shock": 1.0,
+      "cancel_burst": 0.0
+    }
+  }
+}

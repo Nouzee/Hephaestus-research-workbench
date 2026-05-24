@@ -1,0 +1,50 @@
+{
+  "alignment": {
+    "depth_evap": {
+      "optimal_lead": 15,
+      "correlation": 0.04989106358748271,
+      "is_predictive": true,
+      "role": "predictive"
+    },
+    "obi_impulse": {
+      "optimal_lead": 0,
+      "correlation": 0.10343568500982578,
+      "is_predictive": true,
+      "role": "predictive"
+    },
+    "spread_shock": {
+      "optimal_lead": 10,
+      "correlation": 0.011927911015973186,
+      "is_predictive": false,
+      "role": "diagnostic"
+    },
+    "cancel_burst": {
+      "optimal_lead": 12,
+      "correlation": 0.0164419010083526,
+      "is_predictive": false,
+      "role": "diagnostic"
+    },
+    "gram_aux": {
+      "optimal_lead": 10,
+      "correlation": 0.04078290056676763,
+      "is_predictive": true,
+      "role": "predictive"
+    }
+  },
+  "weights": {
+    "depth_evap": 1.0,
+    "obi_impulse": 1.0,
+    "spread_shock": 1.0,
+    "cancel_burst": 0.5,
+    "gram_aux": 0.3
+  },
+  "notes": {
+    "depth_evap": "leading indicator \u2014 liquidity vanishes before impact",
+    "obi_impulse": "coincident \u2014 order flow spike at impact",
+    "spread_shock": "reactive \u2014 spread widens after impact; diagnostic only",
+    "cancel_burst": "duration collapse as activity surge proxy",
+    "gram_aux": "Gram velocity as topological auxiliary"
+  },
+  "batch_size": 2048,
+  "max_lead_batches": 20
+}

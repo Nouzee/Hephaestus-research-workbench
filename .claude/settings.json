@@ -1,0 +1,22 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:\\Users\\ZaneLaw\\anaconda3\\python.exe c:\\Users\\ZaneLaw\\Desktop\\Zane\\Hephaestus\\.claude\\hooks\\log_tool_use.py"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "additionalDirectories": [
+      "c:\\Users\\ZoneLaw\\Desktop\\Zone\\Hephaestus\\modules\\crucible",
+      "C:\\Users\\ZoneLaw\\Desktop\\Zone\\Zone\\Zone\\Zone\\Zone\\Zone",
+      "c:\\Users\\ZoneLaw\\Desktop\\Zone\\Zone\\modules"
+    ]
+  }
+}
