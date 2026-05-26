@@ -22,6 +22,7 @@ from scipy.stats import wasserstein_distance
 
 from modules.probability.scale_flow import ScaleFlow, ScaleFlowResult
 from modules.probability.scale_consistency import ConsistencyCurve
+from modules.probability.msdp_guard import MSDPGuard, GuardResult
 
 
 SCALE_NAMES = ["S0:raw_L2", "S1:modes", "S2:regime", "S3:hazard", "S4:backbone"]
@@ -116,6 +117,11 @@ class MSDP:
     plateau_threshold: float = 0.15     # max ΔF within plateau
     min_plateau_width: int = 2          # minimum scales for valid plateau
     null_threshold: float = 0.70        # F_real / F_null must be below this
+
+    # Guard (pre-flight check before full MSDP execution)
+    guard_enabled: bool = True
+    guard: MSDPGuard = field(default_factory=MSDPGuard)
+    guard_result: GuardResult = None
 
     seed: int = 42
     result: MSDPResult = None
@@ -238,6 +244,21 @@ class MSDP:
         F_null_mean = np.mean(null_F_values)
         result.null_separation = float(F_real_mean / max(F_null_mean, 1e-8))
         result.null_passed = result.null_separation < self.null_threshold
+
+        # ── 4.5. MSDP Guard (mandatory pre-check) ──
+        if self.guard_enabled:
+            null_F_curve = result.F_null_curves.get("shuffled",
+                            np.ones_like(result.F_curve))
+            self.guard_result = self.guard.check(
+                result.F_curve, F_samples, null_F_curve)
+            if not self.guard_result.passed:
+                # Guard blocked — downgrade classification
+                result.classification = "CASE_C"
+                result.case_detail = (
+                    f"MSDP Guard blocked: {self.guard_result.block_reason}"
+                )
+                self.result = result
+                return result
 
         # ── 5. Final classification ──
         has_plateau = result.interval_width >= self.min_plateau_width
