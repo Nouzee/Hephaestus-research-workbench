@@ -1,21 +1,22 @@
 """
-Scale Flow + Fixed Point Detector — renormalization in stochastic market systems.
+Scale Flow v2 — Distribution-Level Fixed Point Detection
 
-Not dimensionality reduction. It's fixed-point identification across scale.
+Upgraded from metric-comparison to distributional invariance.
 
-Scale hierarchy:
-  S0: raw L2 microstructure (16-dim observable)
-  S1: microstructure modes (d-eff modes, PCA compressed)
-  S2: regime state (R0-R7, discrete 8-state)
-  S3: hazard space (continuous tox ∈ [0,1])
-  S4: backbone 1D drift (projection onto v1)
+Three stability criteria (all must hold at k*):
+  (A) KL stability:  D_KL(P(S_{k+1}) || P(S_k)) → noise floor
+  (B) Kernel stability: ||P(Z_{t+1}|S_k) - P(Z_{t+1}|S_{k+1})||_W → 0
+  (C) Decision stability: E[π_k(a|S)] - E[π_{k+1}(a|S)] → 0
 
-Three minimality criteria per scale k:
-  (A) ΔI_k = I(S; S_k) - I(S; S_{k+1})  → 0 at fixed point
-  (B) ε_k = ||P(S_{t+1}|S_k) - P(S_{t+1}|S_{k+1})||  → 0 at closure
-  (C) ΔSharpe_k = |Sharpe(π_k) - Sharpe(π_{k+1})|  → 0 at saturation
+Anti-fixed-point tests:
+  1. Basis rotation: PCA random rotate → k* disappears? → pseudo plateau
+  2. Noise injection: S_k += ε·N(0,1) → k* shifts? → fragile
+  3. Kernel permutation: shuffle Z transitions → k* survives? → trivial
 
-Output: k* (fixed-point scale), basis B_k*, measure P_k*, transition kernel at k*.
+Output classification:
+  CASE A: TRUE MINIMAL ELEMENT (stable k*, passes anti-tests, cross-time stable)
+  CASE B: QUASI-STABLE (weak plateau, fails anti-tests partially)
+  CASE C: NO MINIMUM (no stable k*, everything scale-dependent)
 """
 
 from __future__ import annotations
@@ -23,11 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import numpy as np
 from scipy import linalg
+from scipy.stats import wasserstein_distance
 
-
-# ===========================================================================
-# Scale definitions
-# ===========================================================================
 
 SCALE_NAMES = ["S0:raw_L2", "S1:modes", "S2:regime", "S3:hazard", "S4:backbone"]
 N_SCALES = len(SCALE_NAMES)
@@ -39,147 +37,130 @@ N_SCALES = len(SCALE_NAMES)
 
 @dataclass
 class ScaleFlowResult:
-    """Complete renormalization flow analysis."""
+    """Distribution-level fixed point detection result."""
 
-    # Per-scale metrics
-    entropies: np.ndarray           # (N_SCALES,) H(S_k)
-    variances: np.ndarray           # (N_SCALES,) total variance
-    info_gains: np.ndarray          # (N_SCALES-1,) ΔI_k = I_k - I_{k+1}
-    closure_errors: np.ndarray      # (N_SCALES-1,) ε_k
-    sharpe_deltas: np.ndarray       # (N_SCALES-1,) ΔSharpe_k
+    # Per-scale entropies
+    entropies: np.ndarray = None           # (N_SCALES,) H(S_k)
 
-    # Fixed point detection
-    fixed_point_scale: int = -1     # k* where all three plateau
-    plateau_start: int = -1         # first scale where criteria are met
-    is_valid: bool = False          # does a genuine fixed point exist?
+    # Distribution-level stability metrics (N_SCALES-1,)
+    kl_stability: np.ndarray = None        # D_KL(P_{k+1} || P_k)
+    kernel_stability: np.ndarray = None    # Wasserstein distance between kernels
+    decision_stability: np.ndarray = None  # policy shift
 
-    # Plateau metrics
-    plateau_width: int = 0          # number of consecutive scales in plateau
-    plateau_stability: float = 0.0  # how flat is the plateau (CV of metrics)
+    # Fixed point
+    fixed_point_scale: int = -1
+    plateau_scales: list = field(default_factory=list)
+    classification: str = "UNCLASSIFIED"   # CASE_A, CASE_B, CASE_C
+
+    # Anti-test results
+    anti_basis_passed: bool = False
+    anti_noise_passed: bool = False
+    anti_permute_passed: bool = False
+
+    # Cross-time stability
+    cross_time_stable: bool = False
 
     # Warnings
     warnings: list = field(default_factory=list)
 
     @property
-    def minimal_element(self) -> dict:
-        """The minimal sufficient representation."""
-        if not self.is_valid or self.fixed_point_scale < 0:
-            return {"error": "no valid fixed point found"}
+    def is_valid(self) -> bool:
+        return self.classification == "CASE_A"
+
+    @property
+    def verdict(self) -> str:
         return {
-            "k*": self.fixed_point_scale,
-            "scale_name": SCALE_NAMES[self.fixed_point_scale],
-            "entropy": float(self.entropies[self.fixed_point_scale]),
-            "plateau_width": self.plateau_width,
-            "interpretation": (
-                f"Scale {self.fixed_point_scale} ({SCALE_NAMES[self.fixed_point_scale]}) "
-                f"is the minimal sufficient representation. "
-                f"Adding more scales does not increase information, improve dynamics, "
-                f"or enhance trading performance."
-            ),
-        }
+            "CASE_A": "TRUE MINIMAL ELEMENT — market has intrinsic representation scale",
+            "CASE_B": "QUASI-STABLE — regime-dependent compression only",
+            "CASE_C": "NO MINIMUM — market is scale-free stochastic field",
+        }.get(self.classification, "UNCLASSIFIED")
 
 
 # ===========================================================================
-# Scale Flow Engine
+# Scale Flow Engine v2
 # ===========================================================================
 
 @dataclass
 class ScaleFlow:
     """
-    Renormalization flow detector for stochastic market systems.
+    Distribution-level fixed point detection.
 
     Usage
     -----
     >>> sf = ScaleFlow()
-    >>> sf.fit(features, regimes, hazard_curve, backbone_proj, pnl_paths)
-    >>> result = sf.detect_fixed_point()
-    >>> print(f"Minimal scale: {result.fixed_point_scale}")
+    >>> sf.fit(features_by_scale, regime_seqs_by_scale, policy_by_scale)
+    >>> sf.detect_fixed_point()
+    >>> sf.run_anti_tests(features_by_scale)
+    >>> print(sf.result.verdict)
     """
 
-    # Thresholds for fixed-point detection
-    eps_info: float = 0.05      # ΔI < ε → plateau
-    eps_closure: float = 0.10   # ε_k < ε → closure
-    eps_sharpe: float = 0.10    # ΔSharpe < ε → saturation
+    # Noise floor thresholds (auto-calibrated from data)
+    kl_floor: float = 0.0
+    kernel_floor: float = 0.0
+    decision_floor: float = 0.0
 
     # Internal
     result: ScaleFlowResult = None
+    _features_by_scale: list = field(default_factory=list)
+    _regimes_by_scale: list = field(default_factory=list)
 
     # ── Fit ──────────────────────────────────────────────────────────
 
     def fit(
         self,
-        features: np.ndarray,           # (N, D) raw L2 features (S0)
-        regime_labels: np.ndarray,      # (N,) regime labels (S2)
-        hazard_values: np.ndarray,      # (N,) continuous hazard (S3)
-        backbone_proj: np.ndarray,      # (N,) backbone projection (S4)
-        pnl_per_path: np.ndarray = None, # (n_paths, n_scales) for MC stability
-        mode_features: np.ndarray = None, # (N, d) mode projections (S1, optional)
+        features_by_scale: list[np.ndarray],    # [S0, S1, S2, S3, S4] each (N, d_k)
+        regime_seqs_by_scale: list[np.ndarray],  # [S2, S3, S4] regime sequences
+        policy_actions_by_scale: list[np.ndarray] = None,  # expected action per scale
     ) -> "ScaleFlow":
-        """Fit scale flow from hierarchical representations."""
-        N = len(features)
-        D = features.shape[1]
-        result = ScaleFlowResult(
-            entropies=np.zeros(N_SCALES),
-            variances=np.zeros(N_SCALES),
-            info_gains=np.zeros(N_SCALES - 1),
-            closure_errors=np.zeros(N_SCALES - 1),
-            sharpe_deltas=np.zeros(N_SCALES - 1),
-        )
+        """
+        Fit scale flow from hierarchical representations.
 
-        # ── S0: raw L2 ──
-        result.entropies[0] = self._gaussian_entropy(features)
-        result.variances[0] = float(np.var(features))
+        Parameters
+        ----------
+        features_by_scale : list of (N, d_k) arrays for each scale
+        regime_seqs_by_scale : list of (N,) regime label arrays
+        policy_actions_by_scale : optional, expected action per (N,)
+        """
+        self._features_by_scale = features_by_scale
+        self._regimes_by_scale = regime_seqs_by_scale
 
-        # ── S1: mode space (PCA compressed) ──
-        if mode_features is not None:
-            result.entropies[1] = self._gaussian_entropy(mode_features)
-            result.variances[1] = float(np.var(mode_features))
+        result = ScaleFlowResult()
+        n_scales = len(features_by_scale)
+        result.entropies = np.zeros(n_scales)
+
+        # Compute per-scale entropies
+        for k in range(n_scales):
+            result.entropies[k] = self._gaussian_entropy(features_by_scale[k])
+
+        # ── (A) KL stability: D_KL(P_{k+1} || P_k) ──
+        result.kl_stability = np.zeros(n_scales - 1)
+        for k in range(n_scales - 1):
+            result.kl_stability[k] = self._distribution_kl(
+                features_by_scale[k], features_by_scale[k+1])
+
+        # ── (B) Kernel stability: Wasserstein between transition kernels ──
+        result.kernel_stability = np.zeros(n_scales - 1)
+        for k in range(min(len(regime_seqs_by_scale) - 1, n_scales - 1)):
+            if k < len(regime_seqs_by_scale) and k+1 < len(regime_seqs_by_scale):
+                result.kernel_stability[k] = self._kernel_wasserstein(
+                    regime_seqs_by_scale[k], regime_seqs_by_scale[k+1])
+
+        # ── (C) Decision stability: policy shift ──
+        if policy_actions_by_scale is not None:
+            result.decision_stability = np.zeros(n_scales - 1)
+            for k in range(min(len(policy_actions_by_scale) - 1, n_scales - 1)):
+                result.decision_stability[k] = float(np.mean(
+                    np.abs(policy_actions_by_scale[k] - policy_actions_by_scale[k+1])
+                ))
         else:
-            # Approximate: first d_eff PCs
-            X_c = features - features.mean(axis=0)
-            _, S, _ = linalg.svd(X_c, full_matrices=False)
-            cum_var = np.cumsum(S**2) / np.sum(S**2)
-            d_eff = int(np.searchsorted(cum_var, 0.90)) + 1
-            X_pca = X_c @ linalg.svd(X_c, full_matrices=False)[2][:d_eff].T
-            result.entropies[1] = self._gaussian_entropy(X_pca)
-            result.variances[1] = float(np.var(X_pca))
+            result.decision_stability = np.zeros(n_scales - 1)
 
-        # ── S2: regime ──
-        K = int(np.max(regime_labels)) + 1
-        p_z = np.bincount(regime_labels, minlength=K) / N
-        p_z = p_z[p_z > 0]
-        result.entropies[2] = float(-np.sum(p_z * np.log(p_z + 1e-12)))
-        result.variances[2] = float(np.var(regime_labels.astype(np.float64)))
-
-        # ── S3: hazard ──
-        h_clipped = np.clip(hazard_values, 0.001, 0.999)
-        result.entropies[3] = float(-np.mean(
-            h_clipped * np.log(h_clipped) + (1 - h_clipped) * np.log(1 - h_clipped)
-        ))
-        result.variances[3] = float(np.var(hazard_values))
-
-        # ── S4: backbone ──
-        result.entropies[4] = self._gaussian_entropy(backbone_proj.reshape(-1, 1))
-        result.variances[4] = float(np.var(backbone_proj))
-
-        # ── Cross-scale metrics ──
-        for k in range(N_SCALES - 1):
-            # (A) Info gain: entropy reduction
-            delta_I = result.entropies[k] - result.entropies[k+1]
-            result.info_gains[k] = float(max(delta_I, 0.0))
-
-            # (B) Dynamic closure: variance ratio stability
-            v_k = result.variances[k]
-            v_k1 = result.variances[k+1]
-            result.closure_errors[k] = float(abs(v_k - v_k1) / max(v_k, 1e-8))
-
-            # (C) MC Sharpe stability (if available)
-            if pnl_per_path is not None and pnl_per_path.shape[1] > max(k, k+1):
-                s_k = self._sharpe_from_paths(pnl_per_path[:, k])
-                s_k1 = self._sharpe_from_paths(pnl_per_path[:, k+1])
-                result.sharpe_deltas[k] = float(abs(s_k - s_k1))
-            else:
-                result.sharpe_deltas[k] = 0.0
+        # Auto-calibrate noise floors from data
+        self.kl_floor = float(np.median(result.kl_stability) * 0.5)
+        self.kernel_floor = float(np.median(result.kernel_stability) * 0.5)
+        self.decision_floor = float(np.median(result.decision_stability) * 0.5)
+        if self.decision_floor < 1e-8:
+            self.decision_floor = 0.05
 
         self.result = result
         return self
@@ -188,77 +169,188 @@ class ScaleFlow:
 
     def detect_fixed_point(self) -> ScaleFlowResult:
         """
-        Find k* where all three criteria simultaneously plateau.
+        Find k* where ALL THREE distribution-level criteria hit noise floor.
 
-        Plateau ≠ zero. Plateau = all derivatives near zero.
+        k* = first scale where KL, kernel, and decision stability are all
+        simultaneously below their respective noise floors.
         """
-        if self.result is None:
-            raise RuntimeError("Call fit() first.")
-
         r = self.result
+        n = len(r.kl_stability)
 
-        # Find first scale from the right where ALL criteria converge
-        for k in range(N_SCALES - 2, -1, -1):
-            info_ok = r.info_gains[k] < self.eps_info
-            closure_ok = r.closure_errors[k] < self.eps_closure
-            sharpe_ok = r.sharpe_deltas[k] < self.eps_sharpe
+        # Find plateau: consecutive scales where all three are below floor
+        plateau_start = -1
+        for k in range(n - 1, -1, -1):
+            kl_ok = r.kl_stability[k] < self.kl_floor
+            kern_ok = r.kernel_stability[k] < self.kernel_floor
+            dec_ok = r.decision_stability[k] < self.decision_floor
 
-            if info_ok and closure_ok and sharpe_ok:
-                r.fixed_point_scale = k
-                r.is_valid = True
-                break
+            if kl_ok and kern_ok and dec_ok:
+                plateau_start = k
+            else:
+                break  # plateau must be contiguous from the right
 
-        # Plateau width: how many consecutive scales meet criteria
-        if r.is_valid:
-            width = 1
-            for k in range(r.fixed_point_scale + 1, N_SCALES - 1):
-                if (r.info_gains[k] < self.eps_info and
-                    r.closure_errors[k] < self.eps_closure):
-                    width += 1
+        if plateau_start >= 0:
+            r.fixed_point_scale = plateau_start
+            # Count plateau width
+            r.plateau_scales = []
+            for k in range(plateau_start, n):
+                if (r.kl_stability[k] < self.kl_floor and
+                    r.kernel_stability[k] < self.kernel_floor):
+                    r.plateau_scales.append(k)
                 else:
                     break
-            r.plateau_width = width
-
-            # Stability: CV of info_gains within plateau
-            plateau_vals = r.info_gains[r.fixed_point_scale:
-                                        r.fixed_point_scale + width]
-            r.plateau_stability = float(np.std(plateau_vals) / max(np.mean(plateau_vals), 1e-8))
-
-        # False minimum checks
-        self._verify(r)
 
         return r
 
-    # ── Verification ─────────────────────────────────────────────────
+    # ── Anti-fixed-point tests ──────────────────────────────────────
 
-    def _verify(self, r: ScaleFlowResult):
-        """Check for false minima: regime collapse, projection artifact, sample size."""
-        r.warnings = []
+    def run_anti_tests(
+        self,
+        features_by_scale: list[np.ndarray],
+        regime_seqs: list[np.ndarray] = None,
+    ) -> ScaleFlowResult:
+        """
+        Three perturbation tests to verify k* is not a pseudo plateau.
 
-        # Regime collapse: if S2 has near-zero entropy
-        if r.entropies[2] < 0.1:
-            r.warnings.append("REGIME_COLLAPSE: S2 entropy near zero — dead system")
+        Test 1: Basis rotation — randomly rotate PCA basis
+        Test 2: Noise injection — add Gaussian noise to features
+        Test 3: Kernel permutation — shuffle transition matrix
+        """
+        r = self.result
+        n_scales = len(features_by_scale)
 
-        # Projection artifact: if backbone has more variance than modes
-        if r.variances[4] > r.variances[1] * 0.9:
-            r.warnings.append("PROJECTION_ARTIFACT: backbone captures nearly as much as full mode space")
+        # ── Test 1: Basis rotation ──
+        # Randomly rotate feature space; re-fit; check if k* persists
+        rotated_features = []
+        for k in range(n_scales):
+            X_k = features_by_scale[k].copy()
+            d = X_k.shape[1]
+            if d > 1:
+                Q = np.linalg.qr(np.random.randn(d, d))[0]  # random orthonormal
+                X_k = X_k @ Q
+            rotated_features.append(X_k)
 
-        # Flat flow: if all info_gains are near zero
-        if np.all(r.info_gains < 0.01):
-            r.warnings.append("FLAT_FLOW: no information gain at any scale — data may be noise")
+        sf_rot = ScaleFlow()
+        if regime_seqs:
+            sf_rot.fit(rotated_features, regime_seqs)
+        else:
+            sf_rot.fit(rotated_features, self._regimes_by_scale)
+        sf_rot.detect_fixed_point()
 
-        # Degenerate fixed point: if k* is S0 (raw)
-        if r.fixed_point_scale == 0 and r.is_valid:
-            r.warnings.append("DEGENERATE_FP: fixed point at raw data — no compression possible")
+        # If k* shifts by >1 scale, basis rotation matters → pseudo plateau
+        r.anti_basis_passed = (
+            abs(sf_rot.result.fixed_point_scale - r.fixed_point_scale) <= 1
+        )
 
-        if r.warnings:
-            r.is_valid = False
+        # ── Test 2: Noise injection ──
+        noisy_features = []
+        for k in range(n_scales):
+            X_k = features_by_scale[k].copy()
+            noise_std = np.std(X_k) * 0.10  # 10% relative noise
+            X_k += np.random.randn(*X_k.shape) * noise_std
+            noisy_features.append(X_k)
 
-    # ── Helpers ──────────────────────────────────────────────────────
+        sf_noise = ScaleFlow()
+        if regime_seqs:
+            sf_noise.fit(noisy_features, regime_seqs)
+        else:
+            sf_noise.fit(noisy_features, self._regimes_by_scale)
+        sf_noise.detect_fixed_point()
+
+        r.anti_noise_passed = (
+            abs(sf_noise.result.fixed_point_scale - r.fixed_point_scale) <= 1
+        )
+
+        # ── Test 3: Kernel permutation ──
+        if regime_seqs and len(regime_seqs) > 1:
+            permuted_regimes = []
+            for seq in regime_seqs:
+                perm = seq.copy()
+                np.random.shuffle(perm)
+                permuted_regimes.append(perm)
+
+            sf_perm = ScaleFlow()
+            sf_perm.fit(features_by_scale, permuted_regimes)
+            sf_perm.detect_fixed_point()
+
+            # If k* DOESN'T change under permutation, the structure was trivial
+            r.anti_permute_passed = (
+                abs(sf_perm.result.fixed_point_scale - r.fixed_point_scale) > 1
+            )
+        else:
+            r.anti_permute_passed = True  # not applicable
+
+        # ── Final classification ──
+        anti_pass = r.anti_basis_passed and r.anti_noise_passed and r.anti_permute_passed
+        has_plateau = r.fixed_point_scale >= 0 and len(r.plateau_scales) >= 2
+
+        if has_plateau and anti_pass and r.cross_time_stable:
+            r.classification = "CASE_A"
+        elif has_plateau and (anti_pass or r.cross_time_stable):
+            r.classification = "CASE_B"
+        else:
+            r.classification = "CASE_C"
+
+        return r
+
+    # ── Distribution-level metrics ──────────────────────────────────
+
+    @staticmethod
+    def _distribution_kl(X_a: np.ndarray, X_b: np.ndarray) -> float:
+        """Approximate KL divergence between two Gaussian distributions."""
+        if X_a.shape[1] != X_b.shape[1]:
+            return 0.0  # different dimensionalities — use entropy difference instead
+        d = X_a.shape[1]
+        cov_a = np.cov(X_a.T) + 1e-8 * np.eye(d)
+        cov_b = np.cov(X_b.T) + 1e-8 * np.eye(d)
+        mu_a = np.mean(X_a, axis=0)
+        mu_b = np.mean(X_b, axis=0)
+
+        # KL(N_a || N_b) = 0.5 * [tr(Σ_b^{-1} Σ_a) + (μ_b-μ_a)^T Σ_b^{-1} (μ_b-μ_a) - d + log|Σ_b|/|Σ_a|]
+        try:
+            cov_b_inv = np.linalg.inv(cov_b)
+            _, logdet_a = np.linalg.slogdet(cov_a)
+            _, logdet_b = np.linalg.slogdet(cov_b)
+            kl = 0.5 * (
+                np.trace(cov_b_inv @ cov_a)
+                + (mu_b - mu_a) @ cov_b_inv @ (mu_b - mu_a)
+                - d
+                + logdet_b - logdet_a
+            )
+            return float(max(kl, 0.0))
+        except np.linalg.LinAlgError:
+            return 0.0
+
+    @staticmethod
+    def _kernel_wasserstein(seq_a: np.ndarray, seq_b: np.ndarray) -> float:
+        """Wasserstein distance between empirical transition kernels."""
+        Ka = int(np.max(seq_a)) + 1
+        Kb = int(np.max(seq_b)) + 1
+        K = max(Ka, Kb)
+
+        # Build empirical transition counts
+        def build_kernel(s, K):
+            C = np.zeros((K, K), dtype=np.float64)
+            for t in range(len(s) - 1):
+                if s[t] < K and s[t+1] < K:
+                    C[s[t], s[t+1]] += 1
+            row_sum = C.sum(axis=1, keepdims=True)
+            return C / np.maximum(row_sum, 1)
+
+        P_a = build_kernel(seq_a, K)
+        P_b = build_kernel(seq_b, K)
+
+        # 1D Wasserstein per row, averaged
+        total_w = 0.0
+        for i in range(K):
+            # Compare row distributions via 1D Wasserstein on support {0..K-1}
+            support = np.arange(K)
+            w = wasserstein_distance(support, support, P_a[i], P_b[i])
+            total_w += w
+        return float(total_w / K)
 
     @staticmethod
     def _gaussian_entropy(X: np.ndarray) -> float:
-        """Gaussian entropy approximation: H = 0.5 * log((2πe)^d * |Σ|)."""
         if X.ndim == 1:
             X = X.reshape(-1, 1)
         N, d = X.shape
@@ -268,64 +360,76 @@ class ScaleFlow:
         _, logdet = np.linalg.slogdet(cov + 1e-8 * np.eye(d))
         return float(0.5 * (d * (1 + np.log(2 * np.pi)) + logdet))
 
-    @staticmethod
-    def _sharpe_from_paths(pnl_paths: np.ndarray) -> float:
-        """Sharpe ratio from MC PnL paths."""
-        terminal = pnl_paths if pnl_paths.ndim == 1 else pnl_paths
-        mu = np.mean(terminal)
-        sigma = np.std(terminal)
-        return float(mu / max(sigma, 1e-8))
+    # ── Walk-forward stability ──────────────────────────────────────
+
+    def test_cross_time(
+        self,
+        features_by_scale: list[np.ndarray],
+        regime_seqs: list[np.ndarray],
+        n_splits: int = 3,
+    ) -> bool:
+        """Test if k* is stable across time splits."""
+        N = len(features_by_scale[0])
+        k_stars = []
+
+        for split in range(n_splits):
+            t0 = int(N * split / n_splits)
+            t1 = int(N * (split + 1) / n_splits)
+
+            feats_split = [f[t0:t1] for f in features_by_scale]
+            regs_split = [r[t0:t1] for r in regime_seqs]
+
+            sf = ScaleFlow()
+            sf.fit(feats_split, regs_split)
+            sf.detect_fixed_point()
+            k_stars.append(sf.result.fixed_point_scale)
+
+        # Stable if all splits agree within ±1
+        k_stars_arr = np.array(k_stars)
+        self.result.cross_time_stable = bool(
+            np.max(k_stars_arr) - np.min(k_stars_arr) <= 1
+            and np.all(k_stars_arr >= 0)
+        )
+        return self.result.cross_time_stable
 
     # ── Report ───────────────────────────────────────────────────────
 
     def print_report(self):
-        """Print scale flow analysis."""
         r = self.result
         if r is None:
-            print("Not fitted.")
-            return
+            print("Not fitted."); return
 
         print(f"\n{'═'*70}")
-        print(f"  Scale Flow — Renormalization Fixed Point Detection")
+        print(f"  Scale Flow v2 — Distribution-Level Fixed Point Detection")
         print(f"{'═'*70}")
 
-        print(f"\n  Scale Hierarchy:")
-        print(f"  {'Scale':<16s} {'H(S_k)':>10s} {'Var(S_k)':>10s} "
-              f"{'ΔI_k':>10s} {'ε_k':>10s} {'ΔSharpe':>10s}")
-        print(f"  {'─'*16} {'─'*10} {'─'*10} {'─'*10} {'─'*10} {'─'*10}")
+        print(f"\n  Stability metrics (lower = more stable):")
+        print(f"  {'Transition':<20s} {'KL stab':>10s} {'Kernel stab':>12s} "
+              f"{'Decision stab':>14s} {'Verdict':>12s}")
+        print(f"  {'─'*20} {'─'*10} {'─'*12} {'─'*14} {'─'*12}")
 
-        for k in range(N_SCALES):
-            h = r.entropies[k]
-            v = r.variances[k]
-            di = r.info_gains[k-1] if k > 0 else 0
-            eps = r.closure_errors[k-1] if k > 0 else 0
-            ds = r.sharpe_deltas[k-1] if k > 0 else 0
+        for k in range(len(r.kl_stability)):
+            kl = r.kl_stability[k]; kw = r.kernel_stability[k]
+            ds = r.decision_stability[k]
+            all_ok = kl < self.kl_floor and kw < self.kernel_floor and ds < self.decision_floor
+            marker = "PLATEAU" if all_ok else "—"
+            print(f"  {SCALE_NAMES[k]} -> {SCALE_NAMES[k+1][:6]:<6s}  "
+                  f"{kl:>10.4f} {kw:>12.4f} {ds:>14.4f} {marker:>12s}")
 
-            marker = ""
-            if r.is_valid and k == r.fixed_point_scale:
-                marker = " ← FIXED POINT k*"
-            elif r.is_valid and k >= r.fixed_point_scale and k < r.fixed_point_scale + r.plateau_width:
-                marker = " ← plateau"
+        print(f"\n  Noise floors: KL<{self.kl_floor:.4f}  "
+              f"Kernel<{self.kernel_floor:.4f}  Decision<{self.decision_floor:.4f}")
 
-            print(f"  {SCALE_NAMES[k]:<16s} {h:>10.4f} {v:>10.4f} "
-                  f"{di:>10.4f} {eps:>10.4f} {ds:>10.4f}{marker}")
+        print(f"\n  Fixed point: k* = {r.fixed_point_scale}")
+        print(f"  Plateau: {r.plateau_scales}")
 
-        # Thresholds used
-        print(f"\n  Detection thresholds:")
-        print(f"    ΔI < {self.eps_info}  |  ε < {self.eps_closure}  |  ΔSharpe < {self.eps_sharpe}")
+        print(f"\n  Anti-Fixed-Point Tests:")
+        print(f"    Basis rotation:  {'PASS' if r.anti_basis_passed else 'FAIL'}")
+        print(f"    Noise injection: {'PASS' if r.anti_noise_passed else 'FAIL'}")
+        print(f"    Kernel permute:  {'PASS' if r.anti_permute_passed else 'FAIL'}")
+        print(f"    Cross-time:      {'PASS' if r.cross_time_stable else 'FAIL'}")
 
-        # Result
-        if r.is_valid:
-            me = r.minimal_element
-            print(f"\n  FIXED POINT FOUND: {me['scale_name']}")
-            print(f"    Plateau width: {r.plateau_width} scales")
-            print(f"    {me['interpretation']}")
-        else:
-            print(f"\n  NO VALID FIXED POINT")
-            if r.warnings:
-                print(f"  Warnings: {r.warnings}")
-            if r.fixed_point_scale >= 0:
-                print(f"  (closest candidate: {SCALE_NAMES[r.fixed_point_scale]}, "
-                      f"but verification failed)")
-
+        print(f"\n  ┌{'─'*60}┐")
+        print(f"  │  CLASSIFICATION: {r.classification:<45s} │")
+        print(f"  │  {r.verdict:<58s} │")
+        print(f"  └{'─'*60}┘")
         print(f"{'═'*70}")
