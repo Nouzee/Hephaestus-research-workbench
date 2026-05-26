@@ -12,4 +12,4 @@ Stochastic process representation of limit order book markets.
 
 __all__ = ["stochastic_state", "transition_kernel", "hazard_model",
            "mc_backtest", "policy", "stochastic_geometry", "execution_engine",
-           "scale_flow", "scale_consistency"]
+           "scale_flow", "scale_consistency", "msdp"]
