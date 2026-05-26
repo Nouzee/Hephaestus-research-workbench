@@ -1,4 +1,4 @@
-# Hephaestus-SSP: Sparse State Policy
+# Hephaestus-SSP-ASHARE: Sparse State Policy
 
 A-share L2 microstructure execution strategy.  
 **ONLY trades 15 CORE states. ELSE flat.**
