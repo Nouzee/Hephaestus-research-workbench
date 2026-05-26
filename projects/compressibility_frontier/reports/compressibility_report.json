@@ -1,0 +1,74 @@
+{
+  "rankings": [
+    {
+      "regime": "FRAGILE",
+      "composite": 0.5869410053541874,
+      "n_samples": 78,
+      "residual": 0.7837316783479868,
+      "effective_rank": 4.2466110289224765,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "HEALTHY",
+      "composite": 0.5357808204931658,
+      "n_samples": 469,
+      "residual": 0.6797140640982927,
+      "effective_rank": 4.827989276443418,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "LOW_VOL",
+      "composite": 0.525362096990359,
+      "n_samples": 629,
+      "residual": 0.7253322377505136,
+      "effective_rank": 4.822815357620716,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "NON_RECOVERY",
+      "composite": 0.5233701964456334,
+      "n_samples": 964,
+      "residual": 0.714970596737066,
+      "effective_rank": 4.930960618017298,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "RECOVERY",
+      "composite": 0.5224409608817451,
+      "n_samples": 941,
+      "residual": 0.7269940152358721,
+      "effective_rank": 4.91869901914217,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "MID_VOL",
+      "composite": 0.5219582252155206,
+      "n_samples": 647,
+      "residual": 0.7245968233868235,
+      "effective_rank": 4.973682843334234,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "TRANSITION",
+      "composite": 0.5211622233067439,
+      "n_samples": 1358,
+      "residual": 0.7309053008855537,
+      "effective_rank": 4.972569480756249,
+      "atom_entropy": -0.0
+    },
+    {
+      "regime": "HIGH_VOL",
+      "composite": 0.5202515972282176,
+      "n_samples": 629,
+      "residual": 0.712411067794899,
+      "effective_rank": 4.976003734394857,
+      "atom_entropy": -0.0
+    }
+  ],
+  "interpretation": "Compressibility is relatively uniform across regimes (spread=0.067). Either the dictionary captures a universal market structure, or the regime definitions don't isolate different information states.",
+  "n_regimes": 8,
+  "compression_range": {
+    "max": 0.5869410053541874,
+    "min": 0.5202515972282176
+  }
+}
