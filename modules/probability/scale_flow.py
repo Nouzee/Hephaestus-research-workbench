@@ -340,12 +340,17 @@ class ScaleFlow:
         P_a = build_kernel(seq_a, K)
         P_b = build_kernel(seq_b, K)
 
-        # 1D Wasserstein per row, averaged
+        # 1D Wasserstein per row, averaged (add epsilon for zero rows)
+        eps_row = 1e-8
+        P_a_safe = P_a + eps_row
+        P_a_safe = P_a_safe / P_a_safe.sum(axis=1, keepdims=True)
+        P_b_safe = P_b + eps_row
+        P_b_safe = P_b_safe / P_b_safe.sum(axis=1, keepdims=True)
+
         total_w = 0.0
         for i in range(K):
-            # Compare row distributions via 1D Wasserstein on support {0..K-1}
             support = np.arange(K)
-            w = wasserstein_distance(support, support, P_a[i], P_b[i])
+            w = wasserstein_distance(support, support, P_a_safe[i], P_b_safe[i])
             total_w += w
         return float(total_w / K)
 
