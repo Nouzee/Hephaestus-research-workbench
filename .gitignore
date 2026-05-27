@@ -5,7 +5,9 @@ data/
 
 # Output and logs
 output/
-.claude/logs/
+# Claude Code (local config only — exclude everything except skills)
+.claude/
+!.claude/skills/
 *.log
 
 # Python
