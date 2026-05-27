@@ -14,10 +14,24 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+*.egg-info/
 
 # Cache: keep configs, exclude generated arrays
 modules/dictionary/cache/*.npy
 !modules/dictionary/cache/*.json
+
+# IDE
+.vscode/
+.idea/
+
+# Temp / debug
+_smoke_*.py
+_tmp_*.py
+*_debug.py
+
+# Reports (generated)
+reports/*.json
+reports/*.md
 
 # System
 .DS_Store
