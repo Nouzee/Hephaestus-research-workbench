@@ -46,9 +46,9 @@ Hephaestus/
 │   ├── risk/                #   风控状态机
 │   └── research/            #   市场解构实验模块
 │
-├── experiments/             # 实验管线 (37 scripts)
-│   ├── ashare/              #   A 股研究
-│   └── btc/                 #   BTC 研究
+├── experiments/
+│   ├── ashare/              #   A 股实验 (regime, toxicity, CORE, execution)
+│   └── btc/                 #   BTC 实验 (decomposition, dynamics, scale)
 │
 ├── strategies/
 │   └── hephaestus-ssp/      # A 股稀疏状态执行策略
