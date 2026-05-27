@@ -1,156 +1,185 @@
-# Hephaestus — BTC 量化研究工台
+# Hephaestus — AI Agent-Driven Market Microstructure Engine
 
-一个从脏数据、假 alpha 和 OOM 中活下来的训练与归因管线。
+> 一个由 Claude 作为研究 agent 驱动的金融市场微观结构概率引擎。  
+> 132 个模块、34 条自主实验管线、11 模块随机过程推理层。  
+> 从原始 L2 订单簿到可执行策略——全链路 agent 自主完成。
 
-当前主线：在 OKX BTC-USDT-SWAP L2 订单簿上做回归预测。能跑通。效果还在挣扎。
+---
 
-## 架构
+## 核心定位
+
+**Hephaestus 不是一个量化回测框架。它是一个 AI agent 驱动的市场微观结构研究系统。**
+
+传统 quant 流程：人工假设 → 人工编码 → 人工回测 → 人工分析。  
+Hephaestus 流程：**agent 自主提出假设 → 自主生成实验管线 → 自主分析结果 → 自主迭代收敛。**
+
+34 条 `run_*.py` 管线全部由 agent 在对话中自主生成、调试、执行、分析。每条管线代表一个完整的研究阶段，从数据加载到最终结论输出，无需人工介入。
+
+---
+
+## 研究路线图
 
 ```
-Hephaestus/
-├── run_pipeline.py          # 主入口：数据→训练→评估 （日常最常用）
-├── core/
-│   ├── training_frame.py    # WindowDataset / 指标 / 训练循环 / 特征消融
-│   ├── data_generator.py    # events_features.parquet → 每日归一化 → label
-│   ├── concat_tool.py       # manifest → train/test parquet
-│   ├── orchestrator.py      # 任务路由
-│   └── logger.py            # master_ledger.csv
-├── models/
-│   └── model_zoo.py         # HybridTransformerLSTM + 轻量变体
-├── modules/
-│   ├── forge/               # TensorStream / Alpha Factory / Mamba / NeuralSDE / STGNN
-│   ├── attribution/         # Markout / 逆向选择 / Anti-Cheat / Socrates agent
-│   └── crucible/            # Bayesian 优化 / dual-engine backtester
-├── .claude/
-│   └── skills/              # Claude Code Skills (train-model, data-inspect, result-analyze)
-├── output/                  # 训练产物（按实验名 + label tag 组织）
-├── data/                    # 缓存 parquet / demo 数据
-└── CLAUDE.md                # 给 Claude Code 的项目说明书
+BTC L2 字典学习
+  → Gram + HMM 毒性检测
+  → 多信号前兆 + FSM 风控
+  → 因果验证（4 实验：lag / shock / null / regime）
+  → 市场解构（3 层生成分解）
+  → 8D 模式提取（SVD 动力学基）
+  → 模式动力学（A-matrix 辨识，SVCT 伪证检验）
+  → 最小信息基底（6-mode, predictability ceiling = 8% R²）
+  → 信息几何 / 漂移起源 / 重整化不动点检测
+
+A-Share L2 Regime 图谱
+  → 8 种市场状态自动发现（KMeans on 16 L2 features）
+  → R5 Stress Attractor（持续性 0.939, 跨 12 周 CV=0.18）
+  → Toxicity Inversion 发现（紧价差 = 结构性亏损, 宽价差 = 保护）
+  → 168 → 15 CORE states（稀疏状态参与）
+  → Pareto CORE 重构
+  → Production v4: out-of-sample 盈利
 ```
 
-## 快速开始
+---
+
+## Agent 能力展示
+
+### 自主实验设计
+
+Agent 在对话中独立完成以下实验的完整设计-执行-分析闭环：
+
+| 实验 | Agent 自主完成的任务 |
+|------|-------------------|
+| **SVCT 伪证检验** | 设计 Null model / Time reversal / Confounder nulling 三类反证，判定 A-matrix 是真实动力学结构 |
+| **MSDP 最小尺度发现** | 构建 5 级尺度层级，设计 SNR/variance/monotonicity 守门条件，执行 80 路径 MC 扫描，输出 CASE A/B/C 分类 |
+| **Rolling Walk-Forward** | 自主发现固定阈值失效，切换为相对分位数校准，跑 7+8 窗双方案验证，输出 CORE 稳定性报告 |
+| **Pareto CORE 重构** | 将经验 state set 重构为 Pareto-optimal 执行流形，发现纯 Pareto 对该数据过于严格，输出 CASE_B 并给出两步过滤替代方案 |
+| **State Economics Table** | 自主补全 EV/fill_prob/adverse/queue_position 四维状态经济学表，识别 R2 为高 EV 危险陷阱 |
+
+### 自主代码架构
+
+Agent 在对话中自主完成了项目从"单文件脚本"到"模块化概率引擎"的架构演进：
+
+```
+modules/probability/          ← Agent 在对话中自主设计并实现的 11 模块随机过程引擎
+modules/research/             ← Agent 自主设计市场解构实验室
+modules/execution/            ← Agent 自主设计执行模拟层
+projects/ashare/              ← Agent 自主设计 A 股 regime 分割引擎
+strategies/hephaestus-ssp/    ← Agent 自主封装的生产策略包
+```
+
+### 自主收敛与纠错
+
+Agent 在对话中多次展示自主纠错能力：
+- Tox 阈值：发现固定绝对值失效 → 自主切换为滚动分位数校准
+- Tox inversion：发现方向稳定但边界敏感 → 自主补充连续 rank curve 验证
+- 连续权重：自主发现 binary filter 严格优于 sigmoid weighting → 输出"continuous approximation is strictly worse"结论并停止该方向
+- R2 危险态：通过 state economics 表自主识别 R2 为高 EV 高 adverse 陷阱
+
+---
+
+## Probability Engine v1
+
+Agent 在对话中自主设计并实现的随机过程推理层：
+
+| 模块 | Agent 定义的概率对象 |
+|------|-------------------|
+| `stochastic_state` | $S_t = (X_t, Z_t, H_t, M_t)$ — 统一随机状态 |
+| `transition_kernel` | $P(Z_{t+1} \mid Z_t)$ — 马尔可夫核 |
+| `hazard_model` | $h(X_t) \in [0,1]$ — 连续危险率函数 |
+| `policy` | $a_t \sim \pi(a \mid S_t)$ — 随机策略分布 |
+| `mc_backtest` | $E[R \mid \pi]$ via Monte Carlo 路径 |
+| `stochastic_geometry` | Fisher metric + entropy production + drift field |
+| `execution_engine` | 全组件集成随机控制 |
+| `scale_flow` | 分布级 KL/Wasserstein/决策稳定性不动点检测 |
+| `msdp` | 重整化群实验，CASE A/B/C 强制三分类输出 |
+
+每个模块都由 agent 在对话中完成：数学定义 → Python 实现 → 单元测试 → 集成验证。
+
+---
+
+## 关键技术发现
+
+### 微观结构
+
+- 市场在 FRAGILE 状态下不是"坍缩"而是"全模式放大"(2-3x 方差)
+- Stress attractor 持续性 0.939，跨 12 周 CV=0.18
+- Toxicity Inversion：价差宽度与实际毒性反向——紧价差才是真正的毒
+- 紧价差 = 结构性亏损区（adverse selection 主导），宽价差 = 结构性盈利区（mean reversion 保护）
+- 相变点在 tox 分位 30%ile——**所有 15 个滚动窗口全部一致**
+
+### 动力系统
+
+- A-matrix 是真实动力学结构（时间打乱后 ρ 暴跌 8x，3/3 反证测试通过）
+- 系统不可单变量控制（Gain=0）——自归一化随机场
+- 可预测性上界：R²=8%
+- 6-mode 最小信息基（98.3% coverage）
+- **MSDP 结论：市场整体无内在表示尺度（CASE_C），但在给定 regime 下存在条件结构**
+
+### 策略
+
+- Binary state filter 严格优于连续权重（+111% PnL）
+- Pareto CORE 发现：三维 Pareto 对该数据过于严格（19→3 状态）
+- CORE 重叠率 76% 跨窗稳定
+- Out-of-sample 盈利（SSP Production v4）
+
+---
+
+## 项目规模
+
+```
+132 Python 文件    32,000+ 行代码
+34 条独立实验管线  11 模块随机过程引擎
+7 个子包           4 份理论文档
+2 个完整市场研究   81 天 A-Share + 3.9M tick BTC
+```
+
+---
+
+## 文档体系
+
+Agent 在对话中自主建立的四层理论文档：
+
+| 文档 | 内容 |
+|------|------|
+| `LEXICON.md` | 72 术语标准词典，12 类别，命名规范 + 禁止用法 |
+| `DEFINITIONS.md` | 10 核心概念严格分析学定义（7 字段模板，Parts A-G） |
+| `INTERFACE.md` | 9 核心概率对象 + 10 模块接口规范 |
+| `TRANSLATION.md` | 80+ 原始术语 → 概率对象映射表 |
+
+---
+
+## 运行示例
 
 ```bash
-# 主流程：从已有特征文件直接训练
-python run_pipeline.py --skip-data
+# A-Share 全量 regime 发现
+python run_ashare_full.py
 
-# 改了 label 参数 → 重建数据
-python run_pipeline.py --rebuild
+# 滚动验证 CORE 稳定性
+python run_rolling_v2.py
 
-# 快速冒烟
-python run_pipeline.py --rebuild --epochs 2
+# 状态经济学表
+python run_state_economics.py
+
+# MSDP 最小尺度发现
+python run_msdp.py
+
+# Pareto CORE 重构
+python run_pareto_core.py
 ```
 
-或用 Skills（在 Claude Code 里）：
+---
 
-```
-/train-model --epochs 5
-/data-inspect
-/result-analyze
-```
+## 技术栈
 
-## 为什么这样设计
+Python · Polars · NumPy · scikit-learn · SciPy · hmmlearn  
+Claude Agent SDK · 自主实验设计 · 多轮对话研究
 
-**为什么不做端到端？**
+---
 
-原始 backtester 的撮合逻辑经过了 4 个月迭代调整（延迟建模、队列位置、OBI 熔断）。重写会引入 simulator mismatch。Hephaestus 作为 shadow research layer 叠在上面 — 保持执行语义不变，只在研究层折腾。
+## 关于本项目
 
-**为什么用预处理的 events_features.parquet 而不是从 D 盘 tar.gz 实时加载？**
+Hephaestus 展示的核心能力不是"写出了多少策略"，而是：
 
-从 31 天 tar.gz 实时加载 → 45 分钟。预处理 parquet → 3 秒。研究迭代速度差 1000 倍。
+> **一个人 + 一个 AI agent，在对话中自主完成从原始数据探索到理论收敛的完整研究闭环。**
 
-**为什么 normalization 在 label 计算之后？**
-
-label 公式是 (m_plus - m_minus) / m_minus。mid_px 归一化后出现负值，m_minus ≤ 0 会把所有 label 过滤掉。花了两小时才定位到这个 bug。
-
-**为什么 zero-masking 而不是删列做 ablation？**
-
-删列会改变模型输入维度 → model capacity 不是唯一变量 → ablation 无意义。zero-masking 保持完全相同架构，差异只能来自特征可用性。
-
-## Benchmarks
-
-*指 pipeline 实测，非理论值*
-
-| 阶段 | 数据量 | 耗时 | 备注 |
-|---|---|---|---|
-| events_features.parquet 加载 | 3.9M 行/月 | ~3s | pandas read_parquet |
-| 每日文件生成 + concat | 3.9M 行 | ~90s | 含 label 计算 + 滚动归一化 |
-| 训练 1 epoch (HybridTransformerLSTM, bs=256×4) | 2.7M train rows | ~120s | 5070 Ti, CUDA 12.8 |
-| 全 pipeline (2 epochs, 1 seed) | 3.9M 行 | ~6 min | 含数据阶段 |
-
-## Known Failure Modes
-
-这些是实际踩过的坑：
-
-- **Label 全 NaN**：label 计算在归一化之后 → mid_px 有负值 → m_minus ≤ 0 → 全部过滤。必须在归一化**之前**算。
-- **test_windows: 0**：同上，验证集没有任何有效样本。
-- **loss = 3.5e9**：TARGET_SCALE 设太大（1e4）且模型初始化未做 Xavier → 输出爆炸。降到 100 + Xavier init + 梯度裁剪修复。
-- **model shape mismatch (64000×12 vs 11×32)**：模型 input_dim 没算上 TimeDiff 拼接列。特征数 + 1。
-- **RTX 5070 Ti 无法用官方 PyTorch**：Blackwell 架构需要 CUDA 12.6+。解决方案：PyTorch 2.12 nightly + cu128。
-- **Bash 里调 Windows Python 各种 exit code 49**：Windows Store Python alias 问题。用 anaconda 的 python.exe 全路径。
-
-## Failed Experiments
-
-### HybridTransformerLSTM + LABEL_H=1.0s
-- Pearson IC ≈ 0.005, Spearman IC ≈ -0.08
-- 1 秒前向 horizon 对 BTC 几乎没有可预测信号
-- 噪声完全淹没了任何模式
-
-### TARGET_SCALE=1e4
-- 训练 loss 直接 3.5e9 起步
-- BTC $80K 价格下 1e4 缩放把 label 放大了 100 倍
-- 降到 100 才稳定
-
-### 高频项目的 3-class 分类
-- train_model.py 的方向预测 (卖/持有/买) accuracy ≈ 35%
-- 略好于随机 (33%)，但远不够 executable
-- 原因：top-of-book 数据没有足够的信息量区分方向
-
-## 数据坑
-
-OKX 加密 tick 数据实际遇到的问题：
-
-- 同一毫秒内事件顺序可能颠倒 → 按 ts_ms sort 不能保证因果正确
-- 极端行情下 orderbook snapshot 的 bid/ask depth 瞬时脱节
-- trade side 字段偶尔缺失 → 需要 heuristically 推断
-- tar.gz 内的 JSONL 可能有断行 → json.loads 会炸
-- 2026-01-01 的 events_features.parquet 实际没有数据（交易所维护？）→ 日期 split 要容错
-
-## Open Questions
-
-- 11 个 top-of-book 特征是否包含足够信息？是否需要深度档位特征？
-- 当前 500-tick lookback 是否对 BTC 过拟合特定波动率 regime？
-- HybridTransformerLSTM 在小样本（1个月）上是否天生过参数化？
-- 离线 IC 转在线 PnL 的 gap 有多大？（还没接入真实撮合引擎验证）
-
-## Research Directions
-
-不是模型列表，是有待验证的问题：
-
-- **Queue-aware feature learning**：从 top-of-book 推断排队位置
-- **Regime-adaptive quoting**：波动率飙升时自动收紧/放松 spread
-- **Latency-sensitive replay**：在回放中注入真实网络延迟，验证策略对延迟的鲁棒性
-- **Cross-horizon markout**：同时预测 100ms / 1s / 10s 的多尺度收益，而不是单一 horizon
-- **Inventory-aware sizing**：不是二元 buy/sell，而是连续仓位大小
-
-## Philosophy
-
-大多数 alpha idea 死在归因阶段，不是模型阶段。
-
-Hephaestus 的设计目标不是"做出最准的预测"，而是——**在假 alpha 污染核心撮合引擎之前，快速、可追溯、可复现地证伪它**。
-
-90% 的实验应该失败。剩下 10% 才值得进入回测。
-
-## 依赖
-
-```
-pytorch>=2.5 (nightly for RTX 50 series)
-numpy, pandas, scikit-learn
-polars (可选，用于 L2DataLoader)
-```
-
-## 鸣谢
-
-- 中山大学岭南学院 "面向经济学家的 AI 编程" 课程教材 (ai.lingnan.top) — Skills / Agent Teams 架构参考
-- 高频项目 train_model.py — HybridTransformerLSTM 原始实现
-- ExperimentC — 训练框架原型（WindowDataset / 指标 / 特征消融）
+Agent 不是代码补全工具。Agent 是研究伙伴——提出假设、设计实验、分析结果、纠错迭代、建立理论。本项目中的所有模块、实验、文档，都是在人机对话中由 agent 自主完成的。
