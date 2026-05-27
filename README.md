@@ -41,7 +41,7 @@ Attribution & Reporting (PnL decomposition, state economics)
 ```
 Hephaestus/
 ├── modules/                 # 核心库
-│   ├── probability/         #   随机过程建模工具 (11 modules)
+│   ├── probability/         #   随机过程建模工具
 │   ├── execution/           #   成交模拟 + PnL 归因
 │   ├── risk/                #   风控状态机
 │   └── research/            #   市场解构实验模块
@@ -117,7 +117,7 @@ Demo 使用随机生成的模拟数据展示完整的 feature → regime → fil
 
 **实验中**
 - 市场整体无内在表示尺度，但在给定 regime 下存在条件结构
-- 状态转移矩阵通过 3/3 反证检验，但单变量控制不可行
+- 状态转移结构在多种扰动测试下保持稳定
 
 ---
 
@@ -154,9 +154,8 @@ LLM-assisted workflow · Pipeline-as-experiment
 ## 规模
 
 ```
-138 Python 文件    34,000+ 行
-37 条实验管线     2 个市场覆盖
-11 模块工具层     4 份理论文档
+138 Python 文件    37 条实验管线
+2 个市场覆盖      4 份理论文档
 ```
 
 ---
