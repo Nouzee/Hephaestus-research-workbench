@@ -1,99 +1,147 @@
-# Hephaestus — AI Agent-Driven Market Microstructure Engine
+# Hephaestus — Agent-Oriented Quant Research Workbench
 
-> 一个由 Claude 作为研究 agent 驱动的金融市场微观结构概率引擎。  
-> 132 个模块、34 条自主实验管线、11 模块随机过程推理层。  
-> 从原始 L2 订单簿到可执行策略——全链路 agent 自主完成。
-
----
-
-## 核心定位
-
-**Hephaestus 不是一个量化回测框架。它是一个 AI agent 驱动的市场微观结构研究系统。**
-
-传统 quant 流程：人工假设 → 人工编码 → 人工回测 → 人工分析。  
-Hephaestus 流程：**agent 自主提出假设 → 自主生成实验管线 → 自主分析结果 → 自主迭代收敛。**
-
-34 条 `run_*.py` 管线全部由 agent 在对话中自主生成、调试、执行、分析。每条管线代表一个完整的研究阶段，从数据加载到最终结论输出，无需人工介入。
+面向市场微观结构研究的模块化研究工作台。  
+用于组织高频数据处理、状态识别、实验编排、策略回测与结果归因流程。
 
 ---
 
-## 研究路线图
+## 项目概述
+
+Hephaestus 是一个长期演化的量化研究系统，覆盖 BTC 永续合约和 A 股 L2 订单簿两个市场。
+
+研究工作流以人机协同方式组织：利用 LLM 辅助实验设计、代码生成、结果分析与研究迭代，构建面向微观结构研究的半自动化 workflow。核心价值在于将研究过程中的数据处理、特征提取、状态识别、回测执行、归因分析等环节模块化，支持快速实验迭代和结果复现。
+
+---
+
+## 架构
 
 ```
-BTC L2 字典学习
-  → Gram + HMM 毒性检测
-  → 多信号前兆 + FSM 风控
-  → 因果验证（4 实验：lag / shock / null / regime）
-  → 市场解构（3 层生成分解）
-  → 8D 模式提取（SVD 动力学基）
-  → 模式动力学（A-matrix 辨识，SVCT 伪证检验）
-  → 最小信息基底（6-mode, predictability ceiling = 8% R²）
-  → 信息几何 / 漂移起源 / 重整化不动点检测
-
-A-Share L2 Regime 图谱
-  → 8 种市场状态自动发现（KMeans on 16 L2 features）
-  → R5 Stress Attractor（持续性 0.939, 跨 12 周 CV=0.18）
-  → Toxicity Inversion 发现（紧价差 = 结构性亏损, 宽价差 = 保护）
-  → 168 → 15 CORE states（稀疏状态参与）
-  → Pareto CORE 重构
-  → Production v4: out-of-sample 盈利
+                        Raw L2 Data (orderbook + trades)
+                                  │
+                                  ▼
+                    ┌──────────────────────────┐
+                    │    Feature Engine         │
+                    │  (16 microstructure vars) │
+                    └────────────┬─────────────┘
+                                 │
+                                 ▼
+              ┌──────────────────────────────────┐
+              │       State / Regime Layer        │
+              │  (KMeans regime + quantile tox)   │
+              └────────────┬─────────────────────┘
+                           │
+                           ▼
+              ┌──────────────────────────────────┐
+              │        Signal / Filter Layer      │
+              │  (tox inversion, CORE selector)   │
+              └────────────┬─────────────────────┘
+                           │
+                           ▼
+              ┌──────────────────────────────────┐
+              │    Execution / Backtest Engine    │
+              │  (stochastic fill, MC paths)      │
+              └────────────┬─────────────────────┘
+                           │
+                           ▼
+              ┌──────────────────────────────────┐
+              │     Attribution & Reporting       │
+              │  (state economics, PnL decomp)    │
+              └──────────────────────────────────┘
 ```
 
 ---
 
-## Agent 能力展示
-
-### 自主实验设计
-
-Agent 在对话中独立完成以下实验的完整设计-执行-分析闭环：
-
-| 实验 | Agent 自主完成的任务 |
-|------|-------------------|
-| **SVCT 伪证检验** | 设计 Null model / Time reversal / Confounder nulling 三类反证，判定 A-matrix 是真实动力学结构 |
-| **MSDP 最小尺度发现** | 构建 5 级尺度层级，设计 SNR/variance/monotonicity 守门条件，执行 80 路径 MC 扫描，输出 CASE A/B/C 分类 |
-| **Rolling Walk-Forward** | 自主发现固定阈值失效，切换为相对分位数校准，跑 7+8 窗双方案验证，输出 CORE 稳定性报告 |
-| **Pareto CORE 重构** | 将经验 state set 重构为 Pareto-optimal 执行流形，发现纯 Pareto 对该数据过于严格，输出 CASE_B 并给出两步过滤替代方案 |
-| **State Economics Table** | 自主补全 EV/fill_prob/adverse/queue_position 四维状态经济学表，识别 R2 为高 EV 危险陷阱 |
-
-### 自主代码架构
-
-Agent 在对话中自主完成了项目从"单文件脚本"到"模块化概率引擎"的架构演进：
+## 仓库结构
 
 ```
-modules/probability/          ← Agent 在对话中自主设计并实现的 11 模块随机过程引擎
-modules/research/             ← Agent 自主设计市场解构实验室
-modules/execution/            ← Agent 自主设计执行模拟层
-projects/ashare/              ← Agent 自主设计 A 股 regime 分割引擎
-strategies/hephaestus-ssp/    ← Agent 自主封装的生产策略包
+Hephaestus/
+├── modules/
+│   ├── probability/      # 随机过程建模层 (11 modules)
+│   │   ├── stochastic_state      — S_t 统一随机状态
+│   │   ├── transition_kernel     — P(Z_{t+1}|Z_t) 马尔可夫核
+│   │   ├── hazard_model          — h(X_t) 连续危险率
+│   │   ├── policy                — π(a|S_t) 随机策略
+│   │   ├── mc_backtest           — E[R|π] via 蒙特卡罗路径
+│   │   ├── stochastic_geometry   — Fisher metric / entropy flow
+│   │   ├── execution_engine      — 组件集成随机控制
+│   │   ├── scale_flow            — KL/Wasserstein/决策稳定性
+│   │   ├── msdp                  — 重整化群不动点检测
+│   │   └── scale_consistency     — 反证测试套件
+│   │
+│   ├── dictionary/       # 字典学习 + 多尺度分解 + 信号路由
+│   ├── execution/        # 成交模型 + 硬化执行 + PnL 归因
+│   ├── risk/             # 分层 FSM + 仓位缩放 + 库存偏斜
+│   ├── state/            # MarketState + 一致性扫描
+│   ├── research/         # 市场解构 + 因果图 + 冲击核 + 生成器
+│   ├── forge/            # Mamba / NeuralSDE / STGNN / Alpha 工厂
+│   ├── attribution/      # 归因分析 / Barra / 防作弊
+│   └── crucible/         # 回测引擎 / 优化器
+│
+├── projects/
+│   ├── ashare/                       # A 股 regime 分割引擎
+│   └── compressibility_frontier/     # 可压缩性边界研究
+│
+├── strategies/
+│   └── hephaestus-ssp/               # A 股稀疏状态执行策略
+│
+├── run_*.py (37 pipelines)           # 独立实验管线
+│
+├── LEXICON.md                        # 72 术语标准词典
+├── DEFINITIONS.md                    # 10 核心概念严格定义
+├── INTERFACE.md                      # 9 概率对象 + 模块接口
+└── TRANSLATION.md                    # 80+ 术语 → 概率对象映射
 ```
-
-### 自主收敛与纠错
-
-Agent 在对话中多次展示自主纠错能力：
-- Tox 阈值：发现固定绝对值失效 → 自主切换为滚动分位数校准
-- Tox inversion：发现方向稳定但边界敏感 → 自主补充连续 rank curve 验证
-- 连续权重：自主发现 binary filter 严格优于 sigmoid weighting → 输出"continuous approximation is strictly worse"结论并停止该方向
-- R2 危险态：通过 state economics 表自主识别 R2 为高 EV 高 adverse 陷阱
 
 ---
 
-## Probability Engine v1
+## 研究覆盖
 
-Agent 在对话中自主设计并实现的随机过程推理层：
+### BTC 永续合约 (3.9M ticks)
 
-| 模块 | Agent 定义的概率对象 |
-|------|-------------------|
-| `stochastic_state` | $S_t = (X_t, Z_t, H_t, M_t)$ — 统一随机状态 |
-| `transition_kernel` | $P(Z_{t+1} \mid Z_t)$ — 马尔可夫核 |
-| `hazard_model` | $h(X_t) \in [0,1]$ — 连续危险率函数 |
-| `policy` | $a_t \sim \pi(a \mid S_t)$ — 随机策略分布 |
-| `mc_backtest` | $E[R \mid \pi]$ via Monte Carlo 路径 |
-| `stochastic_geometry` | Fisher metric + entropy production + drift field |
-| `execution_engine` | 全组件集成随机控制 |
-| `scale_flow` | 分布级 KL/Wasserstein/决策稳定性不动点检测 |
-| `msdp` | 重整化群实验，CASE A/B/C 强制三分类输出 |
+| 阶段 | 内容 |
+|------|------|
+| 字典学习 | Sparse coding, K=3 atoms, 因果小波 |
+| 毒性检测 | Gram topology, HMM regime, 多信号前兆 |
+| 因果验证 | Lag causality, shock isolation, null models, confounder |
+| 市场解构 | 3-layer decomposition (OF/LQ/PI), 8D mode extraction |
+| 动力学 | A-matrix identification, SVCT falsification, controllability |
+| 信息几何 | 6-mode minimal basis, predictability ceiling R²=8% |
+| 尺度分析 | Observation operator sweep, MSDP (CASE_C: no intrinsic scale) |
 
-每个模块都由 agent 在对话中完成：数学定义 → Python 实现 → 单元测试 → 集成验证。
+### A 股 L2 (000333, 美的集团, 81 天 10 档深度)
+
+| 阶段 | 内容 |
+|------|------|
+| Regime 发现 | 8 market states via KMeans on 16 L2 features |
+| Toxicity 分析 | Tox inversion (tight spread = loss, wide = profit) |
+| CORE 选择 | 168 → 15 states stable across rolling windows |
+| 状态经济学 | EV/fill, A/E ratio, fill prob, queue position per state |
+| Pareto 重构 | 3D Pareto front on (EV, A/E, Fill%) |
+| 策略验证 | Rolling walk-forward (20/5, 15/5), anti-tests |
+
+---
+
+## 快速开始
+
+```bash
+# A-Share: 全量 regime 发现 (59 days, ~30s)
+python run_ashare_full.py
+
+# Rolling walk-forward: CORE 稳定性验证
+python run_rolling_v2.py
+
+# 状态经济学表: EV / adverse / fill_prob per state
+python run_state_economics.py
+
+# Pareto CORE 重构
+python run_pareto_core.py
+
+# BTC: 市场解构管线
+python run_market_decon.py
+
+# MSDP 最小尺度发现
+python run_msdp.py
+```
 
 ---
 
@@ -101,85 +149,69 @@ Agent 在对话中自主设计并实现的随机过程推理层：
 
 ### 微观结构
 
-- 市场在 FRAGILE 状态下不是"坍缩"而是"全模式放大"(2-3x 方差)
-- Stress attractor 持续性 0.939，跨 12 周 CV=0.18
-- Toxicity Inversion：价差宽度与实际毒性反向——紧价差才是真正的毒
-- 紧价差 = 结构性亏损区（adverse selection 主导），宽价差 = 结构性盈利区（mean reversion 保护）
-- 相变点在 tox 分位 30%ile——**所有 15 个滚动窗口全部一致**
+- R5 Stress Attractor：持续性 0.939，跨 12 周 CV=0.18
+- Toxicity Inversion：紧价差 = adverse selection 主导的结构性亏损区；宽价差 = mean reversion 保护的结构性盈利区
+- 相变点在 tox 分位 30%ile，15 个滚动窗口全部一致
+- FRAGILE 状态下不是模式坍缩，而是全模式方差放大 (2-3x)
 
 ### 动力系统
 
-- A-matrix 是真实动力学结构（时间打乱后 ρ 暴跌 8x，3/3 反证测试通过）
-- 系统不可单变量控制（Gain=0）——自归一化随机场
-- 可预测性上界：R²=8%
-- 6-mode 最小信息基（98.3% coverage）
-- **MSDP 结论：市场整体无内在表示尺度（CASE_C），但在给定 regime 下存在条件结构**
+- A-matrix 通过 3/3 反证检验（Null model, Time reversal, Confounder nulling）
+- 系统不可单变量控制（Gain=0），表现为自归一化随机场
+- Predictability ceiling: R² ≈ 8%
+- MSDP 结论：市场整体无内在表示尺度 (CASE_C)，但在给定 regime 下存在条件结构
 
-### 策略
+### 策略层面
 
-- Binary state filter 严格优于连续权重（+111% PnL）
-- Pareto CORE 发现：三维 Pareto 对该数据过于严格（19→3 状态）
-- CORE 重叠率 76% 跨窗稳定
-- Out-of-sample 盈利（SSP Production v4）
+- Binary state filter 严格优于连续权重方案 (PnL +111%)
+- CORE 状态跨窗重叠率 76%，方向稳定性 100%
+- Pareto CORE：三维支配对该数据过于严格 (19→3)，建议两步过滤
 
 ---
 
-## 项目规模
+## 研究 Workflow
 
-```
-132 Python 文件    32,000+ 行代码
-34 条独立实验管线  11 模块随机过程引擎
-7 个子包           4 份理论文档
-2 个完整市场研究   81 天 A-Share + 3.9M tick BTC
-```
+Hephaestus 的研究流程以 **pipeline-as-experiment** 方式组织：
+
+1. **Hypothesis** — 在 LLM 辅助下形成可测试的研究问题
+2. **Pipeline Generation** — 生成独立的 `run_*.py` 实验脚本
+3. **Execution** — 运行实验，产出结构化结果
+4. **Analysis** — 在 LLM 辅助下解读输出，形成下一步假设
+5. **Iteration** — 基于分析结果决定：深化 / 转向 / 放弃
+
+每条 pipeline 是自包含的：从数据加载到最终结论输出，可独立复现。
 
 ---
 
 ## 文档体系
 
-Agent 在对话中自主建立的四层理论文档：
-
-| 文档 | 内容 |
+| 文档 | 用途 |
 |------|------|
-| `LEXICON.md` | 72 术语标准词典，12 类别，命名规范 + 禁止用法 |
-| `DEFINITIONS.md` | 10 核心概念严格分析学定义（7 字段模板，Parts A-G） |
-| `INTERFACE.md` | 9 核心概率对象 + 10 模块接口规范 |
-| `TRANSLATION.md` | 80+ 原始术语 → 概率对象映射表 |
-
----
-
-## 运行示例
-
-```bash
-# A-Share 全量 regime 发现
-python run_ashare_full.py
-
-# 滚动验证 CORE 稳定性
-python run_rolling_v2.py
-
-# 状态经济学表
-python run_state_economics.py
-
-# MSDP 最小尺度发现
-python run_msdp.py
-
-# Pareto CORE 重构
-python run_pareto_core.py
-```
+| `LEXICON.md` | 72 术语标准词典，统一项目语言 |
+| `DEFINITIONS.md` | 10 核心概念严格分析学定义 (7 字段模板) |
+| `INTERFACE.md` | 模块间概率对象接口规范 |
+| `TRANSLATION.md` | 原始术语 → 概率对象映射 |
 
 ---
 
 ## 技术栈
 
 Python · Polars · NumPy · scikit-learn · SciPy · hmmlearn  
-Claude Agent SDK · 自主实验设计 · 多轮对话研究
+Agent-assisted workflow (Claude) · Pipeline-as-experiment · 多轮迭代研究
+
+---
+
+## 项目规模
+
+```
+138 Python 文件    34,000+ 行
+37 条实验管线     11 模块随机过程引擎
+7 个子包          4 份理论文档
+2 个市场覆盖      81d A-Share + 3.9M tick BTC
+```
 
 ---
 
 ## 关于本项目
 
-Hephaestus 展示的核心能力不是"写出了多少策略"，而是：
-
-> **一个人 + 一个 AI agent，在对话中自主完成从原始数据探索到理论收敛的完整研究闭环。**
-
-Agent 不是代码补全工具。Agent 是研究伙伴——提出假设、设计实验、分析结果、纠错迭代、建立理论。本项目中的所有模块、实验、文档，都是在人机对话中由 agent 自主完成的。
+Hephaestus 是一个持续演化的量化研究工作台。项目的核心价值不在于单一的盈利策略，而在于建立了一套可复现、可迭代、可扩展的研究基础设施——覆盖从原始数据到策略验证的完整链路。LLM 作为 workflow 辅助工具嵌入研究流程的各个环节，加速了实验设计、代码生成和结果分析的循环速度。
