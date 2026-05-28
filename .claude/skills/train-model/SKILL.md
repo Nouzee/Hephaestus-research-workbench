@@ -54,7 +54,7 @@ python run_pipeline.py [--rebuild] [--skip-data] [--epochs N]
 2. 测试集 Pearson IC / Spearman IC / Directional Accuracy
 3. 与上次训练结果的对比（如果存在 `output/` 下的历史记录）
 
-## 训练技巧（来自教材第17章 + 老学长经验）
+## 训练技巧
 
 - **梯度累积**：`GRAD_ACCUM_STEPS=4` 等效 batch=1024，比单纯加大 BATCH_SIZE 更稳定
 - **学习率**：先从 1e-4 开始，loss 不降则试 5e-5 或 1e-3
