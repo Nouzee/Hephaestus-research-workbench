@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-sys.path.insert(0, str(Path(__file__).resolve()))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from projects.ashare.regime_segmentation import L2FeatureExtractor
 from sklearn.cluster import KMeans

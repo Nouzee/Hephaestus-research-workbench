@@ -12,7 +12,7 @@ import sys, time
 from pathlib import Path
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve()))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from projects.ashare.regime_segmentation import (
     build_feature_matrix, FEATURE_NAMES,
