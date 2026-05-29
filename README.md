@@ -1,38 +1,68 @@
-# Hephaestus — LLM-Assisted Quant Research Infrastructure
+# Hephaestus — 量化研究基础设施
 
-面向市场微观结构研究的模块化实验工作台。  
-覆盖特征提取、状态识别、回测执行、归因分析——以 **pipeline-as-experiment** 方式组织。
-
----
-
-## 项目概述
-
-Hephaestus 是一个持续演化的量化研究基础设施，覆盖 A 股 L2 订单簿和 BTC 永续合约两个市场。
-
-研究工作流以 LLM 辅助方式组织：实验设计、代码生成、结果分析环节由 LLM 辅助加速，研究者主导假设形成与决策判断。项目的核心价值在于将高频研究中的各环节模块化，形成可复现、可迭代的实验管线。
+面向市场微观结构分析的实验编排系统。覆盖从 L2 订单簿特征提取、状态识别、执行模拟、多层级审计、到经济可行性边界分析的完整研究链路。
 
 ---
 
-## 架构
+## 定位
+
+Hephaestus 不是一个交易策略。它是一个研究方法论。
+
+核心流程：假设生成 → 实验验证 → 多层审计 → 反证推翻 → 经济可行性边界分析。LLM 辅助代码生成与审计框架设计，研究者主导假设形成与决策判断。
+
+---
+
+## 研究弧线
 
 ```
-Raw L2 Data (orderbook + trades)
-    │
+BTC 字典学习（失败）
+    │  Sharpe -40，逆向选择主导
+    │  教训：信号识别 ≠ 可交易 edge
     ▼
-Feature Engine (16 microstructure variables)
-    │
+A 股微观结构发现（000333）
+    │  发现毒性反转：宽 spread = 盈利，窄 spread = 亏损
+    │  相变点在 30% 分位，15 个滚动窗口一致
     ▼
-State / Regime Layer (clustering + risk scoring)
-    │
+执行感知 CORE（ECORE）
+    │  L2 队列模拟替代 Bernoulli 成交
+    │  发现 R2 执行陷阱（EV 最高但成交率 0.7%）
     ▼
-Signal / Filter Layer (state selection)
-    │
+回测完整性审计（BIA）
+    │  发现 3 个致命会计错误
+    │  Sharpe 7.82 → 0.61，0 回撤 → 4.3B 回撤
     ▼
-Execution / Backtest Engine (stochastic fill simulation)
-    │
+库存感知 ECORE（IECORE）
+    │  对称报价 → 库存随机游走
+    │  Skewing 引擎：风险降 90%，PnL 不变
     ▼
-Attribution & Reporting (PnL decomposition, state economics)
+Delta 中性 + Sharpe 审计（DNA + SA）
+    │  执行 PnL 占总 PnL 100%，库存贡献 ~0%
+    │  Edge 是纯执行的，不是方向暴露
+    ▼
+冻结样本外验证（FOOS）
+    │  前 40 天训练，后 19 天 OOS
+    │  Edge 存活，零衰退（PnL +12%）
+    ▼
+摩擦与压力测试（EFL-SRV）
+    │  A 股零售费率下 Edge 被完全摧毁
+    │  16/16 场景失败
+    ▼
+跨资产转移（X601899）→ 可行性边界分析（VF）
+    │  601899 Edge 厚度是 000333 的 2.63 倍
+    │  做市商计划下 ETR = 3.14，强可行
 ```
+
+---
+
+## 三层 Edge 框架
+
+| 层级 | 问题 | 本项目结论 |
+|---|---|---|
+| 统计 Edge | 模式是否真实？ | 毒性反转真实存在，不是过拟合 |
+| 执行 Edge | 能否执行出来？ | Delta 中性，库存受控，OOS 存活 |
+| 经济可行性 | 扣除成本后还赚吗？ | 零售费率不可行，做市商计划可行 |
+
+大多数 quant 项目停在第一层。Hephaestus 追问到了第三层。
 
 ---
 
@@ -40,126 +70,120 @@ Attribution & Reporting (PnL decomposition, state economics)
 
 ```
 Hephaestus/
-├── modules/                 # 核心库
-│   ├── probability/         #   随机过程建模工具
-│   ├── execution/           #   成交模拟 + PnL 归因
-│   ├── risk/                #   风控状态机
-│   └── research/            #   市场解构实验模块
+├── experiments/ashare/         # A 股实验管线（14 个独立脚本）
+│   ├── regime_discovery.py     #   市场状态聚类发现
+│   ├── execution_validation.py #   L2 队列执行模拟（EVL）
+│   ├── ecore.py                #   执行感知 CORE 重建
+│   ├── ecore_dynamics.py       #   状态转移动力学（ECD）
+│   ├── ecore_timing.py         #   进出场时机引擎（ETE）
+│   ├── ebacktest.py            #   首次集成回测（后被 BIA 推翻）
+│   ├── backtest_audit.py       #   回测完整性审计（BIA）
+│   ├── iecure.py               #   库存感知 ECORE（IECORE）
+│   ├── sharpe_audit.py         #   Sharpe 频率审计（SA）
+│   ├── delta_neutral.py        #   Delta 中性分解（DNA）
+│   ├── foos_validation.py      #   冻结样本外验证（FOOS）
+│   ├── friction_stress.py      #   摩擦与压力测试（EFL-SRV）
+│   ├── cross_asset_601899.py   #   跨资产转移（X601899）
+│   └── viability_frontier.py   #   可行性边界分析（VF）
 │
-├── experiments/
-│   ├── ashare/              #   A 股实验 (regime, toxicity, CORE, execution)
-│   └── btc/                 #   BTC 实验 (decomposition, dynamics, scale)
+├── experiments/btc/            # BTC 实验管线（已放弃）
+│   ├── market_decomposition.py
+│   ├── causal_validation.py
+│   ├── mode_dynamics.py
+│   ├── scale_discovery.py
+│   └── ...
 │
-├── strategies/
-│   └── hephaestus-ssp/      # A 股稀疏状态执行策略
+├── research_logs/              # 研究轨迹记录
+│   ├── Phase_00_BTC_Failure.md
+│   ├── Phase_01_SSP.md
+│   ├── Phase_02_ECORE.md
+│   ├── Phase_03_BIA.md
+│   ├── Phase_04_IECORE.md
+│   ├── Phase_05_DNA.md
+│   ├── Phase_06_FOOS.md
+│   ├── Phase_07_EFL_SRV.md
+│   ├── SUMMARY.md
+│   ├── INTERVIEW_BRIEF.md
+│   └── TECHNICAL_DEEP_DIVE.md
 │
-├── examples/                # 可运行示例
-│   └── demo_pipeline.py     #   最小可运行 demo
+├── modules/                    # 核心库
+│   ├── probability/            #   随机过程建模
+│   ├── execution/              #   成交模拟 + PnL 归因
+│   └── risk/                   #   风控状态机
 │
-├── docs/                    # 理论文档
-│   ├── LEXICON.md
-│   ├── DEFINITIONS.md
-│   ├── INTERFACE.md
-│   └── TRANSLATION.md
+├── projects/ashare/            # L2 特征提取器
+│   └── regime_segmentation.py
+│
+├── docs/                       # 理论文档
+│   ├── LEXICON.md              #   72 术语标准词典
+│   ├── DEFINITIONS.md          #   核心概念严格定义
+│   ├── INTERFACE.md            #   模块接口规范
+│   └── TRANSLATION.md          #   术语 → 概率对象映射
+│
+├── examples/
+│   └── demo_pipeline.py        #   最小可运行 demo
 │
 ├── requirements.txt
-├── LICENSE
+├── LICENSE (MIT)
 └── README.md
 ```
-
----
-
-## 研究覆盖
-
-### A 股 L2 (000333, 美的集团, 81 天 10 档深度)
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| Regime 发现 | 8 种市场状态自动识别 | 已验证 |
-| 风险排序 | Quantile-based risk scoring | 已验证 |
-| 状态选择 | CORE state filtering, rolling walk-forward stable | 已验证 |
-| 状态经济学 | Per-state EV, fill prob, adverse ratio | 已验证 |
-| 策略验证 | Binary filter vs continuous, anti-tests | 已验证 |
-
-### BTC 永续合约 (3.9M ticks)
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| 字典学习 | Sparse coding + 多尺度分解 | 已完成 |
-| 因果验证 | Lag causality, null models, confounder tests | 已完成 |
-| 市场解构 | 3-layer decomposition, mode extraction | 已完成 |
-| 动力学分析 | State transition estimation | 实验中 |
-
----
-
-## 快速开始
-
-```bash
-# 安装依赖
-pip install -r requirements.txt
-
-# 运行 demo（无需真实数据）
-python examples/demo_pipeline.py
-```
-
-Demo 使用随机生成的模拟数据展示完整的 feature → regime → filter → backtest 流程。
 
 ---
 
 ## 关键技术发现
 
 **已验证**
-- Toxicity Inversion：紧价差 = adverse selection 主导的亏损区；宽价差 = mean reversion 保护
-- Stress attractor 持续性 0.939，跨 12 周 CV=0.18
-- 风险相变点在 30%ile，15 个滚动窗口全部一致
-- Binary state filter 严格优于连续权重
-- CORE 状态跨窗重叠率 76%
+- 毒性反转：宽 spread = 均值回归保护 → 结构性盈利；窄 spread = 逆向选择 → 结构性亏损
+- 相变点在 30% 毒性分位，15 个滚动窗口一致，不是过拟合
+- L2 队列真实成交率 82.4%（vs Bernoulli 模型的 30%）
+- R2（深度流动性）是执行陷阱：成交率 0.7%，markout -49 bps，A/E = 4.42
+- 二值状态过滤器严格优于连续权重（+111% PnL）
+- 库存控制不创造 alpha，但将风险降低 90%+ 而不触及执行 edge
+- Delta 中性分解：Edge 是纯粹的 spread 捕获，零方向暴露
+- 冻结参数在样本外零衰退
 
-**实验中**
-- 市场整体无内在表示尺度，但在给定 regime 下存在条件结构
-- 状态转移结构在多种扰动测试下保持稳定
+**经济可行性**
+- A 股零售费率下不可行（费用/spread 比 = 1.6-5.7x）
+- 做市商计划（免印花税 + 0.1bp 佣金）下可行：601899 ETR = 3.14
+- 低价股（~10 CNY）在零售费率下 ETR > 1.0
+- 可行性改善主要来自股价差异（低股价 → 低费用 → 更高 ETR）
+
+**BTC（已放弃）**
+- 字典学习分解出可解释的市场模式，但 Granger 因果检验全部失败
+- R² 天花板 = 8%，系统不可控
+- 连续被动做市 Sharpe ≈ -40
 
 ---
 
-## 研究 Workflow
+## 快速开始
 
-1. **Hypothesis** — 研究者主导假设，LLM 辅助细化
-2. **Pipeline Generation** — 生成自包含的实验脚本
-3. **Execution** — 运行，产出结构化结果
-4. **Analysis** — LLM 辅助解读，研究者做决策
-5. **Iteration** — 深化 / 转向 / 放弃
+```bash
+pip install -r requirements.txt
+python examples/demo_pipeline.py  # 使用模拟数据运行完整流程
+```
 
-每条 pipeline 从数据加载到结论输出可独立复现。
+每个实验脚本可独立运行（需要对应的 L2 数据文件）。
 
 ---
 
 ## 文档
 
 | 文档 | 用途 |
-|------|------|
+|---|---|
+| `research_logs/SUMMARY.md` | 完整研究轨迹总结 |
+| `research_logs/Phase_*.md` | 各阶段详细记录 |
 | `docs/LEXICON.md` | 72 术语标准词典 |
 | `docs/DEFINITIONS.md` | 核心概念严格定义 |
-| `docs/INTERFACE.md` | 模块接口规范 |
-| `docs/TRANSLATION.md` | 术语 → 概率对象映射 |
 
 ---
 
 ## 技术栈
 
-Python · Polars · NumPy · scikit-learn · SciPy · hmmlearn  
-LLM-assisted workflow · Pipeline-as-experiment
+Python · Polars · NumPy · scikit-learn · SciPy
+LLM-assisted research workflow · Pipeline-as-experiment
 
 ---
 
-## 规模
+## 许可
 
-```
-138 Python 文件    37 条实验管线
-2 个市场覆盖      4 份理论文档
-```
-
----
-
-## 关于本项目
-
-Hephaestus 是一个持续演化的量化研究工作台。核心价值在于建立了一套可复现、可迭代的研究基础设施——覆盖从原始数据到策略验证的完整链路。LLM 辅助加速了实验设计和迭代速度，但不替代研究者的判断和决策。
+MIT License
